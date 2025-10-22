@@ -15,6 +15,8 @@ struct MainView: View {
     @State private var showingNewJournalSheet = false
     @State private var selectedJournal: JournalEntry? = nil
     @State private var showBookmarkedOnly = false
+    @State private var showDeleteAlert = false
+    @State private var journalToDelete: JournalEntry? = nil
     
     var body: some View {
         VStack {
@@ -52,47 +54,52 @@ struct MainView: View {
             .padding(.horizontal)
             .padding(.top, 40)
 
-            // Scrollable list of journals
+            // Scrollable list of journals &&&&&&&&&&&&&**********
             ScrollView {
                 VStack(spacing: 16) {
                     ForEach(journals.filter { !showBookmarkedOnly || $0.isBookmarked }) { journal in
-                        // Find the correct binding for this journal
                         if let idx = journals.firstIndex(where: { $0.id == journal.id }) {
                             let binding = $journals[idx]
-                            Button {
-                                selectedJournal = journal
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(binding.title.wrappedValue)
-                                            .font(.custom("SFPro-Bold", size: 22))
-                                            .foregroundColor(.white)
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(binding.title.wrappedValue)
+                                        .font(.custom("SFPro-Bold", size: 22))
+                                        .foregroundColor(.white)
 
-                                        Text(journal.date)
-                                            .font(.custom("SFPro-Semibold", size: 13))
-                                            .foregroundColor(.gray)
+                                    Text(journal.date)
+                                        .font(.custom("SFPro-Semibold", size: 13))
+                                        .foregroundColor(.gray)
 
-                                        Text(binding.content.wrappedValue)
-                                            .font(.custom("SFPro-Regular", size: 16))
-                                            .foregroundColor(.white)
-                                            .lineLimit(2)
-                                            .lineSpacing(5)
-                                    }
-                                    Spacer()
-                                    Button {
-                                        binding.isBookmarked.wrappedValue.toggle()
-                                    } label: {
-                                        Image(systemName: binding.isBookmarked.wrappedValue ? "bookmark.fill" : "bookmark")
-                                            .foregroundColor(binding.isBookmarked.wrappedValue
-                                                             ? Color(red: 184/255, green: 172/255, blue: 255/255)
-                                                             : .gray)
-                                    }
-                                    .buttonStyle(.plain)
+                                    Text(binding.content.wrappedValue)
+                                        .font(.custom("SFPro-Regular", size: 16))
+                                        .foregroundColor(.white)
+                                        .lineLimit(2)
+                                        .lineSpacing(5)
                                 }
-                                .padding()
-                                .background(Color.white.opacity(0.08))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .padding(.horizontal)
+                                Spacer()
+                                Button {
+                                    binding.isBookmarked.wrappedValue.toggle()
+                                } label: {
+                                    Image(systemName: binding.isBookmarked.wrappedValue ? "bookmark.fill" : "bookmark")
+                                        .foregroundColor(binding.isBookmarked.wrappedValue
+                                                         ? Color(red: 184/255, green: 172/255, blue: 255/255)
+                                                         : .gray)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding()
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .padding(.horizontal)
+                            .contentShape(Rectangle())
+                            .onTapGesture { selectedJournal = journal }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    journalToDelete = journal
+                                    showDeleteAlert = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         }
                     }
@@ -127,6 +134,17 @@ struct MainView: View {
                     .presentationDragIndicator(.hidden)
                     .presentationBackground(.clear)
             }
+        }
+        .alert("Delete Journal?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                if let journalToDelete = journalToDelete,
+                   let index = journals.firstIndex(where: { $0.id == journalToDelete.id }) {
+                    journals.remove(at: index)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete this journal?")
         }
     }
 }
