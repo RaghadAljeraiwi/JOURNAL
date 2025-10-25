@@ -36,7 +36,7 @@ struct MainView: View {
                 endPoint: .bottom
             )
             .ignoresSafeArea()
-
+            
             VStack(spacing: 0) {
                 // Title bar
                 HStack {
@@ -96,7 +96,7 @@ struct MainView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 40)
-
+                
                 // Scrollable list of journals
                 ScrollView {
                     if journals.isEmpty {
@@ -131,8 +131,7 @@ struct MainView: View {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        VStack(spacing: 16) {
-                            ForEach(
+                        LazyVStack(spacing: 16, pinnedViews: []) {                            ForEach(
                                 journals.filter {
                                     (!showBookmarkedOnly || $0.isBookmarked) &&
                                     (searchText.isEmpty ||
@@ -142,44 +141,51 @@ struct MainView: View {
                             ) { journal in
                                 if let idx = journals.firstIndex(where: { $0.id == journal.id }) {
                                     let binding = $journals[idx]
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(binding.title.wrappedValue)
-                                                .font(.custom("SFPro-Bold", size: 22))
-                                                .foregroundColor(.white)
-                                            Text(journal.date)
-                                                .font(.custom("SFPro-Semibold", size: 13))
-                                                .foregroundColor(.gray)
-                                            Text(binding.content.wrappedValue)
-                                                .font(.custom("SFPro-Regular", size: 16))
-                                                .foregroundColor(.white)
-                                                .lineLimit(2)
-                                                .lineSpacing(5)
+                                    SwipeToDeleteView {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(binding.title.wrappedValue)
+                                                    .font(.custom("SFPro-Bold", size: 22))
+                                                    .foregroundColor(.white)
+                                                Text(journal.date)
+                                                    .font(.custom("SFPro-Semibold", size: 13))
+                                                    .foregroundColor(.gray)
+                                                Text(binding.content.wrappedValue)
+                                                    .font(.custom("SFPro-Regular", size: 16))
+                                                    .foregroundColor(.white)
+                                                    .lineLimit(2)
+                                                    .lineSpacing(5)
+                                            }
+                                            Spacer()
+                                            Button {
+                                                binding.isBookmarked.wrappedValue.toggle()
+                                            } label: {
+                                                Image(systemName: binding.isBookmarked.wrappedValue ? "bookmark.fill" : "bookmark")
+                                                    .foregroundColor(binding.isBookmarked.wrappedValue
+                                                                     ? Color(red: 184/255, green: 172/255, blue: 255/255)
+                                                                     : .gray)
+                                            }
+                                            .buttonStyle(.plain)
                                         }
-                                        Spacer()
-                                        Button {
-                                            binding.isBookmarked.wrappedValue.toggle()
-                                        } label: {
-                                            Image(systemName: binding.isBookmarked.wrappedValue ? "bookmark.fill" : "bookmark")
-                                                .foregroundColor(binding.isBookmarked.wrappedValue
-                                                                 ? Color(red: 184/255, green: 172/255, blue: 255/255)
-                                                                 : .gray)
-                                        }
-                                        .buttonStyle(.plain)
+                                        .padding()
+                                        .background(Color.white.opacity(0.08))
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        .padding(.horizontal)
+                                        .onTapGesture { selectedJournal = journal }
+                                    } onDelete: {
+                                        journalToDelete = journal
+                                        showDeleteAlert = true
                                     }
-                                    .padding()
-                                    .background(Color.white.opacity(0.08))
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .padding(.horizontal)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { selectedJournal = journal }
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    .gesture(DragGesture()) // يضمن استجابة السحب داخل ScrollView
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                         Button(role: .destructive) {
                                             journalToDelete = journal
                                             showDeleteAlert = true
                                         } label: {
                                             Label("Delete", systemImage: "trash")
+                                                .font(.system(size: 18, weight: .semibold))
                                         }
+                                        .tint(.red)
                                     }
                                 } // end if idx
                             } // end ForEach
@@ -188,9 +194,9 @@ struct MainView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-
+                
                 // Search bar في الأسفل (مرة واحدة)
-
+                
                 // ✅ Search bar always visible at the bottom
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
@@ -226,43 +232,43 @@ struct MainView: View {
                 .onChange(of: speechRecognizer.transcribedText) { _, newValue in
                     searchText = newValue
                 }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .sheet(item: $selectedJournal) { item in
-                if let idx = journals.firstIndex(where: { $0.id == item.id }) {
-                    EditJournalSheet(journal: $journals[idx])
-                        .presentationDetents([.large])
-                        .presentationDragIndicator(.hidden)
-                        .presentationBackground(.clear)
-                } else {
-                    Color.clear
-                        .presentationDetents([.large])
-                        .presentationDragIndicator(.hidden)
-                        .presentationBackground(.clear)
-                }
-            }
-            .alert("Delete Journal?", isPresented: $showDeleteAlert) {
-                Button("Delete", role: .destructive) {
-                    if let journalToDelete = journalToDelete,
-                       let index = journals.firstIndex(where: { $0.id == journalToDelete.id }) {
-                        journals.remove(at: index)
-                    }
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("Are you sure you want to delete this journal?")
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .sheet(item: $selectedJournal) { item in
+            if let idx = journals.firstIndex(where: { $0.id == item.id }) {
+                EditJournalSheet(journal: $journals[idx])
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.hidden)
+                    .presentationBackground(.clear)
+            } else {
+                Color.clear
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.hidden)
+                    .presentationBackground(.clear)
+            }
+        }
+        .alert("Delete Journal?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                if let journalToDelete = journalToDelete,
+                   let index = journals.firstIndex(where: { $0.id == journalToDelete.id }) {
+                    journals.remove(at: index)
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete this journal?")
+        }
     }
-class SpeechRecognizer: ObservableObject {
+    
+    class SpeechRecognizer: ObservableObject {
         private var audioEngine = AVAudioEngine()
         private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
         private var request = SFSpeechAudioBufferRecognitionRequest()
         private var recognitionTask: SFSpeechRecognitionTask?
-
+        
         @Published var transcribedText: String = ""
-
+        
         func startRecording() {
             SFSpeechRecognizer.requestAuthorization { authStatus in
                 guard authStatus == .authorized else {
@@ -274,23 +280,43 @@ class SpeechRecognizer: ObservableObject {
                 }
             }
         }
-
+        
         func stopRecording() {
             audioEngine.stop()
             request.endAudio()
             recognitionTask?.cancel()
         }
-
+        
         private func recordAndRecognizeSpeech() {
+            // إعداد جلسة الصوت قبل التشغيل
+            let audioSession = AVAudioSession.sharedInstance()
+            do {
+                try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+                try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            } catch {
+                print("Audio session setup failed: \(error.localizedDescription)")
+                return
+            }
+            
             let node = audioEngine.inputNode
             let recordingFormat = node.outputFormat(forBus: 0)
+            
+            // 🔹 إزالة أي tap سابق لتجنب الخطأ "nullptr == Tap()"
+            node.removeTap(onBus: 0)
+            
+            // 🔹 إضافة tap جديد
             node.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
                 self.request.append(buffer)
             }
-
+            
             audioEngine.prepare()
-            try? audioEngine.start()
-
+            do {
+                try audioEngine.start()
+            } catch {
+                print("Audio engine failed to start: \(error.localizedDescription)")
+                return
+            }
+            
             recognitionTask = speechRecognizer?.recognitionTask(with: request) { result, error in
                 if let result = result {
                     DispatchQueue.main.async {
@@ -509,8 +535,59 @@ class SpeechRecognizer: ObservableObject {
             }
         }
     }
-
-
-#Preview {
-    MainView()
+    
 }
+struct SwipeToDeleteView<Content: View>: View {
+    @State private var offsetX: CGFloat = 0
+    var content: () -> Content
+    var onDelete: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            // خلفية زر الحذف (تظهر فقط لما المستخدم يسحب)
+            if offsetX < -10 {
+                HStack {
+                    Spacer()
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20, weight: .semibold))
+                            .padding()
+                            .background(Color.red)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .shadow(radius: 4)
+                    }
+                    .padding(.trailing, 16)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+
+            // محتوى العنصر نفسه
+            content()
+                .offset(x: offsetX)
+                .gesture(
+                    DragGesture()
+                        .onChanged { gesture in
+                            if gesture.translation.width < 0 {
+                                offsetX = gesture.translation.width
+                            }
+                        }
+                        .onEnded { _ in
+                            withAnimation(.spring()) {
+                                // لو سحب المستخدم أكثر من 80 نقطة، ثبت الزر مؤقتًا
+                                if offsetX < -80 {
+                                    offsetX = -80
+                                } else {
+                                    offsetX = 0
+                                }
+                            }
+                        }
+                )
+        }
+        .animation(.spring(), value: offsetX)
+    }
+}
+    #Preview {
+        MainView()
+    }
+
