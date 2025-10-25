@@ -47,10 +47,31 @@ struct MainView: View {
                     HStack(spacing: 8) {
                         Menu {
                             Button("Sort by Bookmark") {
-                                journals.sort { $0.isBookmarked && !$1.isBookmarked }
+                                showBookmarkedOnly.toggle()
                             }
-                            Button("Sort by Entry Date") {
-                                journals.sort { $0.date > $1.date }
+                            Button("Sort by Newest First") {
+                                let formatter = DateFormatter()
+                                formatter.dateStyle = .medium
+                                formatter.timeStyle = .short
+                                journals.sort { lhs, rhs in
+                                    if let leftDate = formatter.date(from: lhs.date),
+                                       let rightDate = formatter.date(from: rhs.date) {
+                                        return leftDate > rightDate
+                                    }
+                                    return false
+                                }
+                            }
+                            Button("Sort by Oldest First") {
+                                let formatter = DateFormatter()
+                                formatter.dateStyle = .medium
+                                formatter.timeStyle = .short
+                                journals.sort { lhs, rhs in
+                                    if let leftDate = formatter.date(from: lhs.date),
+                                       let rightDate = formatter.date(from: rhs.date) {
+                                        return leftDate < rightDate
+                                    }
+                                    return false
+                                }
                             }
                         } label: {
                             Image(systemName: "line.3.horizontal.decrease.circle")
@@ -202,7 +223,7 @@ struct MainView: View {
                 .shadow(color: .black.opacity(0.4), radius: 5, x: 0, y: 3)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
-                .onChange(of: speechRecognizer.transcribedText) { newValue in
+                .onChange(of: speechRecognizer.transcribedText) { _, newValue in
                     searchText = newValue
                 }
                 }
@@ -299,7 +320,7 @@ class SpeechRecognizer: ObservableObject {
         @State private var showDiscardAlert = false
         
         private var dateString: String {
-            Date().formatted(date: .abbreviated, time: .omitted)
+            Date().formatted(date: .abbreviated, time: .shortened)
         }
         
         var body: some View {
